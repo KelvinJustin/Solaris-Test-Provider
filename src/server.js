@@ -44,6 +44,23 @@ app.use(express.json({
     },
 }));
 
+// Request logging
+app.use((req, _res, next) => {
+    console.log(`${new Date().toISOString()}  ${req.method}  ${req.path}`);
+    next();
+});
+
+// Response logging — status code + duration
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on("finish", () => {
+        const ms = Date.now() - start;
+        const color = res.statusCode >= 400 ? "\x1b[31m" : "\x1b[32m";
+        console.log(`${new Date().toISOString()}  ${color}${res.statusCode}\x1b[0m  ${req.method}  ${req.path}  ${ms}ms`);
+    });
+    next();
+});
+
 // This is a test simulator, not durable storage.
 // Restarting the process clears all transactions and logs.
 const transactions = new Map();
@@ -76,6 +93,13 @@ const SCENARIOS = {
         "899817573": { outcome: "SUCCESSFUL", simulate503Once: true },
         "899817574": { outcome: "SUCCESSFUL", responseDelayMs: 15000 },
         "899817575": { outcome: "SUCCESSFUL", verificationErrors: 2 },
+    },
+    TEST: {
+        "0990000000": { outcome: "SUCCESSFUL" },
+        "0990000001": {
+            outcome: "FAILED",
+            failureCode: "INSUFFICIENT_FUNDS",
+        },
     },
 };
 
@@ -115,6 +139,7 @@ function buildPayload(transaction, status = transaction.status) {
         event: "payment.updated",
         providerReference: transaction.providerReference,
         transactionReference: transaction.transactionReference,
+        attemptReference: transaction.attemptReference,
         amount: transaction.amount,
         currency: transaction.currency,
         provider: transaction.provider,
@@ -289,6 +314,7 @@ app.get("/health", (_req, res) => {
 app.post("/initiate", async (req, res) => {
     const {
         transactionReference,
+        attemptReference,
         amount,
         phoneNumber,
         provider,
@@ -302,6 +328,13 @@ app.post("/initiate", async (req, res) => {
         !transactionReference.trim()
     ) {
         errors.push("transactionReference is required.");
+    }
+
+    if (
+        typeof attemptReference !== "string" ||
+        !attemptReference.trim()
+    ) {
+        errors.push("attemptReference is required.");
     }
 
     if (
@@ -340,6 +373,7 @@ app.post("/initiate", async (req, res) => {
     const transaction = {
         providerReference,
         transactionReference,
+        attemptReference,
         amount,
         currency,
         phoneNumber,
@@ -373,6 +407,7 @@ app.post("/initiate", async (req, res) => {
     const responseBody = {
         providerReference,
         transactionReference,
+        attemptReference,
         status: "PROCESSING",
         message: "Payment accepted for simulation.",
     };
@@ -456,6 +491,25 @@ app.post("/dev/reset", (_req, res) => {
     return res.json({ ok: true, message: "Simulator state cleared." });
 });
 
+// ---------------------------------------------------------------------------
+// ERROR HANDLERS (must be registered after all routes)
+// ---------------------------------------------------------------------------
+
+// JSON parse error handler — must have 4 params to catch express errors
+app.use((err, req, res, next) => {
+    if (err.type === "entity.parse.failed") {
+        console.error(`${new Date().toISOString()}  PARSE ERROR  ${req.method} ${req.path}  ${err.message}`);
+        return res.status(400).json({ error: "Invalid JSON body." });
+    }
+    next(err);
+});
+
+// Generic error handler — catches anything else thrown in a route
+app.use((err, req, res, _next) => {
+    console.error(`${new Date().toISOString()}  UNHANDLED ERROR  ${req.method} ${req.path}`, err);
+    res.status(500).json({ error: "Internal server error." });
+});
+
 // The verification endpoint returns authoritative payment state,
 // including when callback delivery is disabled or fails.
 // Start the server with a polished terminal startup animation.
@@ -473,7 +527,7 @@ async function startServer() {
     await new Promise((resolve) => setTimeout(resolve, 800));
 
     app.listen(PORT, "0.0.0.0", () => {
-        spinner.succeed(chalk.green("Payment simulator started successfully!"));
+        spinner.succeed(chalk.green("  Payment simulator started successfully!"));
 
         console.log();
         console.log(chalk.cyan.bold("  ┌──────────────────────────────────────┐"));
@@ -486,19 +540,19 @@ async function startServer() {
         );
 
         console.log(
-            `  ${chalk.blue("➜")} ${chalk.bold("Port")}          ${chalk.white(PORT)}`,
+            `  ${chalk.blue("➜")} ${chalk.bold("  Port")}          ${chalk.white(PORT)}`,
         );
 
         console.log(
-            `  ${chalk.blue("➜")} ${chalk.bold("Health")}        ${chalk.underline(`http://localhost:${PORT}/health`)}`,
+            `  ${chalk.blue("➜")} ${chalk.bold("  Health")}        ${chalk.underline(`http://localhost:${PORT}/health`)}`,
         );
 
         console.log(
-            `  ${chalk.blue("➜")} ${chalk.bold("Callback URL")}  ${chalk.gray(CALLBACK_URL || "Not configured")}`,
+            `  ${chalk.blue("➜")} ${chalk.bold("  Callback URL")}  ${chalk.gray(CALLBACK_URL || "Not configured")}`,
         );
 
         console.log(
-            `  ${chalk.blue("➜")} ${chalk.bold("Callback mode")} ${chalk.magenta(CALLBACK_MODE)}`,
+            `  ${chalk.blue("➜")} ${chalk.bold("  Callback mode")} ${chalk.magenta(CALLBACK_MODE)}`,
         );
 
         console.log();

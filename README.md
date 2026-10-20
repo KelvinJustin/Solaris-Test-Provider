@@ -20,8 +20,8 @@ npm install
 ### Run
 
 ```bash
-cp .env.example .env
-node index.js
+cp example.env .env
+npm start
 ```
 
 The server starts on port `8080` by default.
@@ -81,6 +81,7 @@ function isValidCallback(req) {
   "event": "payment.updated",
   "providerReference": "uuid",
   "transactionReference": "your-reference",
+  "attemptReference": "your-attempt-ref",
   "amount": 1500.00,
   "currency": "MWK",
   "provider": "AIRTEL_MONEY",
@@ -167,6 +168,7 @@ Initiates a simulated payment.
 ```json
 {
   "transactionReference": "your-unique-ref",
+  "attemptReference": "your-attempt-ref",
   "amount": 1500.00,
   "phoneNumber": "0990000000",
   "provider": "AIRTEL_MONEY",
@@ -175,6 +177,7 @@ Initiates a simulated payment.
 ```
 
 - `transactionReference` — must be unique per simulator session
+- `attemptReference` — caller's internal identifier for this payment attempt
 - `amount` — positive number, at most two decimal places
 - `provider` — `AIRTEL_MONEY` or `TN_MPAMBA`
 - `currency` — must be `MWK`
@@ -185,6 +188,7 @@ Initiates a simulated payment.
 {
   "providerReference": "uuid",
   "transactionReference": "your-unique-ref",
+  "attemptReference": "your-attempt-ref",
   "status": "PROCESSING",
   "message": "Payment accepted for simulation."
 }
@@ -242,7 +246,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY . .
 EXPOSE 8080
-CMD ["node", "index.js"]
+CMD ["node", "src/server.js"]
 ```
 
 ### Docker Compose
