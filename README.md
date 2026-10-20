@@ -17,7 +17,7 @@ A self-hosted test payment provider that simulates Airtel Money and TNM Mpamba. 
 npm install
 ```
 
-### Run
+### Run locally
 
 ```bash
 cp example.env .env
@@ -25,6 +25,17 @@ npm start
 ```
 
 The server starts on port `8080` by default.
+
+### Run with Docker
+
+```bash
+# Using Docker Compose
+docker compose up -d --build
+
+# Or using plain Docker
+docker build -t test-provider .
+docker run -d --name test-provider -p 8080:8080 --env-file .env test-provider
+```
 
 ---
 

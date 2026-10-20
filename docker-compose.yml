@@ -1,0 +1,20 @@
+services:
+  test-provider:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: solaris-test-provider
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    env_file:
+      - .env
+    extra_hosts:
+      # Allows reaching host services (e.g. callback endpoint running on host machine) via host.docker.internal
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
