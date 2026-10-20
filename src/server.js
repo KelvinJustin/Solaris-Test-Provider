@@ -95,11 +95,8 @@ const SCENARIOS = {
         "899817575": { outcome: "SUCCESSFUL", verificationErrors: 2 },
     },
     TEST: {
-        "0990000000": { outcome: "SUCCESSFUL" },
-        "0990000001": {
-            outcome: "FAILED",
-            failureCode: "INSUFFICIENT_FUNDS",
-        },
+        "990000000": { outcome: "SUCCESSFUL" },
+        "990000001": { outcome: "FAILED", failureCode: "INSUFFICIENT_FUNDS" },
     },
 };
 
